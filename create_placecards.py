@@ -42,11 +42,41 @@ LINE_WIDTH = Pt(0.5)
 TEXT_BLOCK_HEIGHT_MM = 38
 
 
+def _extract_family_name(guest_name, guest_furigana):
+    """Try to extract the family name (kanji) from guest name.
+
+    Uses common Japanese family name lengths (2 kanji most common, then 1, then 3).
+    """
+    if not guest_name:
+        return ''
+    # Only works for kanji-based names
+    kanji_count = sum(1 for c in guest_name if ord(c) > 0x4E00)
+    if kanji_count >= 2:
+        for fam_len in [2, 1, 3]:
+            if fam_len < len(guest_name):
+                return guest_name[:fam_len]
+    return ''
+
+
+def _is_full_name(joint, joint_furi):
+    """Heuristic: check if a 連名 looks like a complete (family + given) name."""
+    if '/' in joint:  # Western-style
+        return True
+    kanji_count = sum(1 for c in joint if ord(c) > 0x4E00)
+    if kanji_count >= 3:
+        return True
+    # If ふりがな has 5+ chars, likely a full name reading
+    if joint_furi and len(joint_furi) >= 5:
+        return True
+    return False
+
+
 def load_names_from_xlsx(xlsx_path):
     """Load attending guest names from xlsx (ゲスト一覧 format).
 
     Extracts main guest name and 連名 (joint names), filtering to 'ご出席' only.
-    Appends 様 to each name.
+    Appends 様 to each name. Handles partial 連名 entries by reconstructing
+    full names from the guest's family name.
     """
     from openpyxl import load_workbook
     wb = load_workbook(xlsx_path, read_only=True)
@@ -59,13 +89,29 @@ def load_names_from_xlsx(xlsx_path):
         if data.get('出欠情報') != 'ご出席':
             continue
         guest = data.get('ゲスト名', '')
+        guest_furi = data.get('ゲスト名（ふりがな）', '') or ''
         if guest:
             names.append(f'{guest}様')
         # Add joint names (連名1-4)
         for i in range(1, 5):
             joint = data.get(f'連名{i}')
-            if joint:
+            if not joint:
+                continue
+            joint_furi = data.get(f'連名{i} ふりがな') or ''
+            if _is_full_name(joint, joint_furi):
                 names.append(f'{joint}様')
+            elif joint_furi and guest_furi.startswith(joint):
+                # 連名 is the family name (hiragana), ふりがな is the given name
+                names.append(f'{joint}{joint_furi}様')
+            else:
+                # 連名 is a given name only — prepend guest's family name
+                family = _extract_family_name(guest, guest_furi)
+                if family:
+                    names.append(f'{family}{joint}様')
+                else:
+                    print(f'Warning: could not determine family name for 連名 "{joint}" '
+                          f'(guest: {guest})', file=sys.stderr)
+                    names.append(f'{joint}様')
     wb.close()
     return names
 
