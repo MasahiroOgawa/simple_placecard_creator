@@ -29,9 +29,10 @@ CARD_HEIGHT = A4_HEIGHT / ROWS    # 74.25mm
 
 # --- Style defaults ---
 FONT_NAME = "Noto Serif CJK JP"
+SCRIPT_FONT_NAME = "Great Vibes"  # curly arabesque-style script font
 WELCOME_TEXT = "welcome"
 DATE_TEXT = "April 19, 2026"
-WELCOME_FONT_SIZE = Pt(18)
+WELCOME_FONT_SIZE = Pt(27)
 DATE_FONT_SIZE = Pt(14)
 NAME_FONT_SIZES = {6: Pt(28), 10: Pt(24)}  # max_len: size; fallback Pt(20)
 NAME_COLOR = RGBColor(0x33, 0x33, 0x33)
@@ -166,7 +167,7 @@ def create_placecards(names, output_pptx, welcome=WELCOME_TEXT, date=DATE_TEXT, 
             p.space_after = Pt(4)
             run = p.add_run()
             run.text = welcome
-            run.font.name = font
+            run.font.name = SCRIPT_FONT_NAME
             run.font.size = WELCOME_FONT_SIZE
             run.font.color.rgb = SUB_COLOR
 
@@ -188,7 +189,7 @@ def create_placecards(names, output_pptx, welcome=WELCOME_TEXT, date=DATE_TEXT, 
             p.space_after = Pt(0)
             run = p.add_run()
             run.text = date
-            run.font.name = font
+            run.font.name = SCRIPT_FONT_NAME
             run.font.size = DATE_FONT_SIZE
             run.font.color.rgb = SUB_COLOR
 
