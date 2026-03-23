@@ -17,6 +17,7 @@ from pptx import Presentation
 from pptx.util import Mm, Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
+from pptx.oxml.ns import qn
 
 # --- Layout constants ---
 A4_WIDTH = 210.0    # mm (portrait)
@@ -92,12 +93,13 @@ def load_names_from_xlsx(xlsx_path):
         guest_furi = data.get('ゲスト名（ふりがな）', '') or ''
         if guest:
             names.append(f'{guest}様')
-        # Add joint names (連名1-4)
-        for i in range(1, 5):
+        # Add joint names (連名1-5)
+        for i in range(1, 6):
             joint = data.get(f'連名{i}')
             if not joint:
                 continue
-            joint_furi = data.get(f'連名{i} ふりがな') or ''
+            # Header has inconsistent spacing (e.g. "連名5ふりがな" vs "連名1 ふりがな")
+            joint_furi = data.get(f'連名{i} ふりがな') or data.get(f'連名{i}ふりがな') or ''
             if _is_full_name(joint, joint_furi):
                 names.append(f'{joint}様')
             elif joint_furi and guest_furi.startswith(joint):
@@ -225,6 +227,11 @@ def create_placecards(names, output_pptx, welcome=WELCOME_TEXT, date=DATE_TEXT, 
             run = p.add_run()
             run.text = name
             run.font.name = font
+            # Set East Asian font and Japanese language for correct glyph rendering
+            rPr = run._r.get_or_add_rPr()
+            rPr.set('lang', 'ja-JP')
+            rPr.set('altLang', 'ja-JP')
+            rPr.append(rPr.makeelement(qn('a:ea'), {'typeface': font}))
             run.font.size = name_font_size(name)
             run.font.color.rgb = NAME_COLOR
 
