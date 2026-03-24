@@ -1,11 +1,10 @@
 # Simple Place Card Creator (席札作成ツール)
 
-Create printable wedding place cards (席札) from a guest list Excel file. Outputs editable LibreOffice Impress (.pptx) and PDF files with 8 cards per A4 landscape page (2 columns x 4 rows).
+Create printable wedding place cards (席札) from a guest list file. Outputs editable LibreOffice Impress (.pptx) and PDF files with 8 foldable cards per A4 portrait page (2 columns x 4 rows).
 
 ## Setup
 
 ```bash
-cd /home/masahiro/proj/study/simple_placecard_creator
 uv sync
 ```
 
@@ -13,10 +12,16 @@ Requires LibreOffice installed for PDF conversion.
 
 ## Usage
 
-### 1. Extract guest names from xlsx
+### 1. Extract guest names from xlsx/csv
 
 ```bash
-uv run python3 extract_guests.py /path/to/ゲスト一覧.xlsx -o guests.csv
+uv run python3 extract_guests.py data/ゲスト一覧.xlsx -o output/guests.csv
+```
+
+Also supports CSV input (auto-detects Japanese encodings):
+
+```bash
+uv run python3 extract_guests.py data/ゲスト一覧.csv -o output/guests.csv
 ```
 
 Extracts all attending guests (ご出席) including 連名 (joint names) and outputs a CSV with display names and 様 suffix.
@@ -24,16 +29,16 @@ Extracts all attending guests (ご出席) including 連名 (joint names) and out
 ### 2. Create place cards
 
 ```bash
-uv run python3 create_placecards.py guests.csv -o 席札_placecards.pptx
+uv run python3 create_placecards.py output/guests.csv -o output/
 ```
 
-Accepts CSV (from step 1) or a plain text file (one name per line).
+Accepts Excel (.xlsx), CSV (from step 1), or a plain text file (one name per line). Output defaults to `output/placecards.pptx`.
 
 #### Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-o`, `--output` | `席札_placecards.pptx` | Output .pptx path |
+| `-o`, `--output` | `output/` | Output directory |
 | `--welcome` | `welcome` | Text above the name |
 | `--date` | `April 19, 2026` | Text below the name |
 | `--font` | `Noto Serif CJK JP` | Font family |
@@ -41,9 +46,9 @@ Accepts CSV (from step 1) or a plain text file (one name per line).
 
 ## Output
 
-- **A4 landscape**, 8 cards per page (148.5mm x 52.5mm each)
+- **A4 portrait**, 8 foldable cards per page (2x4)
 - Separator lines between cards for cutting
-- Each card: welcome text, guest name with 様, date
+- Each card: welcome text (Great Vibes script font), guest name with 様, date
 - Font size auto-adjusts based on name length
 
 ## Special case handling
