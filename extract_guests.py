@@ -107,21 +107,25 @@ def save_csv(participants, csv_path):
 # === Special case handlers for this specific guest list ===
 
 def handle_kouno_family(guest_name, furigana, renmei_pairs):
-    """河野 family: main entry has typo, spouse in furigana field, 連名 are first-name only."""
+    """河野 family: prepend family name only when 連名 has first-name only (xlsx quirk)."""
     results = [
-        {'display': '河野一弘', 'furigana': 'こうのかずひろ'},
-        {'display': '河野クリステル', 'furigana': 'こうのくりすてる'},
+        {'display': guest_name or '河野一弘', 'furigana': furigana or 'こうのかずひろ'},
     ]
+    # CSV already has full names (河野クリステル); xlsx had first-name only
     for name, furi in renmei_pairs:
-        results.append({'display': f'河野{name}', 'furigana': f'こうの{furi}'})
+        display = name if '河野' in name else f'河野{name}'
+        furi_full = furi if 'こうの' in furi else f'こうの{furi}'
+        results.append({'display': display, 'furigana': furi_full})
     return results
 
 
 def handle_ogawa_family(guest_name, furigana, renmei_pairs):
-    """小川敏弘 family: 連名 field has family name, furigana has given name."""
+    """小川敏弘 family: prepend family name only when 連名 has first-name only (xlsx quirk)."""
     results = [{'display': guest_name, 'furigana': furigana}]
     for name, furi in renmei_pairs:
-        results.append({'display': f'小川{furi}', 'furigana': f'{name}{furi}'})
+        display = name if '小川' in name else f'小川{furi}'
+        furi_full = furi if 'おがわ' in furi else f'{name}{furi}'
+        results.append({'display': display, 'furigana': furi_full})
     return results
 
 
