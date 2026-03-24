@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Extract all guest names from ゲスト一覧.xlsx including 連名 and output CSV."""
+"""Extract all guest names from ゲスト一覧.xlsx/.csv including 連名 and output CSV."""
 
 import argparse
 import csv
 import re
+from pathlib import Path
 
 import openpyxl
 
@@ -13,36 +14,57 @@ def format_camelcase(raw):
     return re.sub(r'(?<![Mm]c)(?<![Mm]ac)(?<=[a-z])([A-Z])', r' \1', raw)
 
 
-def extract_guests(xlsx_path, special_cases=None):
-    """Extract all attending guests + 連名 from the xlsx file.
+def _read_rows(file_path):
+    """Read rows from xlsx or csv, returning an iterator of list-of-values (skipping header)."""
+    path = Path(file_path)
+    if path.suffix == '.csv':
+        # Try common Japanese CSV encodings
+        for encoding in ('cp932', 'shift_jis', 'utf-8', 'utf-8-sig'):
+            try:
+                with open(path, encoding=encoding, newline='') as f:
+                    reader = csv.reader(f)
+                    rows = list(reader)
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        else:
+            raise ValueError(f'Could not decode CSV file: {path}')
+        return rows[1:]  # skip header
+    else:
+        wb = openpyxl.load_workbook(file_path)
+        ws = wb['ゲスト情報']
+        return [[cell.value for cell in row] for row in ws.iter_rows(min_row=2, max_row=ws.max_row)]
+
+
+def extract_guests(file_path, special_cases=None):
+    """Extract all attending guests + 連名 from the xlsx/csv file.
 
     Args:
-        xlsx_path: Path to the ゲスト一覧.xlsx file.
+        file_path: Path to the ゲスト一覧.xlsx or .csv file.
         special_cases: Optional dict of {guest_id: handler_function} for data quirks.
 
     Returns:
         List of dicts with 'display' and 'furigana' keys.
     """
     special_cases = special_cases or {}
-    wb = openpyxl.load_workbook(xlsx_path)
-    ws = wb['ゲスト情報']
+    rows = _read_rows(file_path)
 
     all_participants = []
 
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-        attendance = row[1].value  # B: 出欠情報
+    for row in rows:
+        attendance = row[1]  # B: 出欠情報
         if attendance != 'ご出席':
             continue
 
-        guest_name = str(row[2].value or '').strip()
-        furigana = str(row[3].value or '').strip()
-        guest_id = row[0].value
+        guest_name = str(row[2] or '').strip()
+        furigana = str(row[3] or '').strip()
+        guest_id = int(row[0]) if row[0] else row[0]
 
         # Collect 連名 pairs (name, furigana)
         renmei_pairs = []
-        for col_idx in [12, 14, 16, 18]:  # M, O, Q, S (0-indexed)
-            name = row[col_idx].value
-            furi = row[col_idx + 1].value if col_idx + 1 < len(row) else None
+        for col_idx in [12, 14, 16, 18, 20]:  # M, O, Q, S, U (0-indexed)
+            name = row[col_idx] if col_idx < len(row) else None
+            furi = row[col_idx + 1] if col_idx + 1 < len(row) else None
             if name:
                 renmei_pairs.append((str(name).strip(), str(furi or '').strip()))
 
@@ -110,8 +132,8 @@ SPECIAL_CASES = {
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Extract guest names from ゲスト一覧.xlsx')
-    parser.add_argument('xlsx', help='Path to ゲスト一覧.xlsx')
+    parser = argparse.ArgumentParser(description='Extract guest names from ゲスト一覧.xlsx/.csv')
+    parser.add_argument('xlsx', help='Path to ゲスト一覧.xlsx or .csv')
     parser.add_argument('-o', '--output', default=None, help='Output CSV path (default: same dir as xlsx)')
     args = parser.parse_args()
 
